@@ -7,6 +7,15 @@ output:
     css: style.css
 ---
 
+## Key Concepts | Discover Structure Without an Outcome
+
+- **Unsupervised learning:** group observations using their features without known outcome labels.
+- **Feature engineering:** choose the variables and scales that define similarity.
+- **Iteration:** use loops, conditions, and functions to simulate data and compare candidate models.
+- **Tuning and evaluation:** judge cluster fit, stability, and usefulness for the business decision.
+
+Today we adapt lecture 13's modeling workflow to customer segmentation.
+
 ## Student Ratings
 
 It's that time again: [studentratings.byu.edu](https://studentratings.byu.edu).
@@ -96,6 +105,16 @@ ggplot(customers, aes(x = Purchases_per_Year,
 It's hard (as humans) to come up with appropriate decision rules for grouping customers (or other objects) together.
 
 We need a data-driven method groups *similar objects together* and *separates objects that are different*.
+
+## Classification Versus Clustering
+
+Lecture 13 distinguished learning from known outcomes from discovering structure without an outcome.
+
+- In the Roomba classification example, `own`, `shopping`, and `considering` were **supplied labels**. We trained a rule to predict those labels.
+- For the online retailer, no customer-type label has been supplied. We **construct groups** from purchase behavior, then describe what the groups mean.
+- "Segment" can refer to either task. Ask whether the categories are known in advance or are being discovered.
+
+Unsupervised learning groups observations by their features; it does not require a response variable to predict.
 
 ## Cluster Analysis
 
@@ -194,6 +213,16 @@ Other challenges include:
 
 Let's give this a try in R...
 
+## Engineer | Decide What Similarity Means
+
+Lecture 13 called preprocessing for a modeling purpose **feature engineering**. In clustering, these choices define which customers look alike.
+
+- Customer IDs identify rows; their numeric distances do not measure customer similarity.
+- In the retailer example, dollars and purchase counts have different scales. Standardizing them can prevent the larger numerical scale from dominating distance.
+- Choosing purchase behavior rather than attitudes answers a different segmentation question.
+
+There is no known outcome that can settle these choices by classification accuracy. Justify them using the business purpose and compare the resulting profiles.
+
 ## Load Libraries and Set Seed Number
 
 ```{r message=FALSE, warning=FALSE}
@@ -220,7 +249,11 @@ centroids
 
 ---
 
-Let's use the centroids to simulate observations in each cluster. We *could* do something like this.
+Lecture 13 introduced **conditional statements** (`if`, `else if`, and `else`) to select which code runs. In this simulation, the observation index determines which cluster's means to use.
+
+The loop allocates an output table, visits each observation, and saves generated values. Which branch handles each cluster, and what would need to change if we added a fourth cluster?
+
+## Simulate with a Loop and Conditions
 
 ```{r eval=FALSE}
 # Simulate observations.
@@ -241,10 +274,36 @@ for (n in 1:N) {
   }
 }
 ```
-  
----
+## Functions | Package a Repeated Task
 
-We can simplify this! (someone has to write a for-loop, but it doesn't have to be you!)
+Lecture 13 introduced functions to avoid repeating the same code. A function accepts arguments and returns a result:
+
+```{r}
+multiply_xy <- function(x, y = 2) {
+  return(x * y)
+}
+
+multiply_xy(2)
+multiply_xy(x = 2, y = 4)
+```
+
+`y = 2` is a default; `x` must be supplied here. Local variables stay inside the call. A function can also read names from its enclosing environment, but explicit inputs make it easier to reuse.
+
+## Practice | Conditions Inside a Function
+
+The live-coding prompt in lecture 13 asked for a function that identifies a data object's type.
+
+Create a function that accepts an object and returns `"string"`, `"logical"`, or `"numeric"`, using `is.character()`, `is.logical()`, and `is.numeric()` to distinguish them.
+
+- What should it return for an unsupported type, such as a list?
+- How would you check each conditional branch?
+- Why return a value instead of only printing a message?
+
+The same design applies to simulation: put a reusable task in a function, then call it with different inputs.
+
+## From Loops to Mapping Functions
+
+We can simplify the cluster simulation by applying an existing function repeatedly, rather than writing an observation-by-observation loop.
 
 The `map()` function from {purrr} acts as a for loop that applies a function to each element of a vector or a list.
 
@@ -293,6 +352,18 @@ ggplot(sim_data, aes(x = x, y = y, color = cluster)) +
   geom_point(size = 3, alpha = 0.5)
 ```
 
+## Adapt the Predictive Workflow
+
+| Stage from lecture 13 | K-means version |
+|---|---|
+| Engineer | Choose variables and prepare their scales. |
+| Fit | Learn centroids and cluster assignments from the features. |
+| Tune | Compare choices of `k` and use multiple starts. |
+| Evaluate | Examine within-cluster variation, stability, and meaningful profiles. |
+| Apply | Describe the segments and use them to inform a business decision. |
+
+In our simulation, `cluster` records the group used to generate the data. We leave it out of fitting and use it only to inspect recovery; real customer data usually have no such answer key.
+
 ## Fit K-Means
 
 To fit a k-means model, we need to provide the variables we're clustering on and the number of centers (i.e., centroids). The starting place of the centroids is randomized, so be sure to set a seed.
@@ -335,7 +406,7 @@ Compute profiles. "The average observation for each cluster looks like...". Pret
 
 ```{r}
 initial_clusters |>
-  group_by(cluster) |>
+  group_by(.cluster) |>
   summarize(across(c(x, y), mean)) |>
   rename(income = x,
          age = y)
@@ -379,12 +450,12 @@ ggplot(better_initial_clusters, aes(x = x, y = y, color = .cluster)) +
 
 ## Handling Uncertainty
 
-- We can use multiple starts to overcome uncertainty about which points to assign to which clusters
+- Multiple starts reduce sensitivity to the initial centroids; they do not prove that a partition is the one true customer segmentation.
 - What is a another source of uncertainty in cluster analysis?
 
 ## Use Hyperparameter Tuning to Choose `k`
 
-The hyperparameter in k-means is `k` itself. Like before, we need to run many models and compare...something?
+Lecture 13 distinguished **hyperparameters** from what fitting learns. In k-means, we choose `k`; fitting learns centroid locations and observation assignments for that choice. Like before, we need to run many models and compare...something?
 
 We can't determine the best model by predictive fit (there isn't an outcome to predict), but we do have measures of model fit. We're interested here in the within-cluster sum of squares.
 
@@ -397,7 +468,7 @@ But that's just for one value of `k`.
 
 ---
 
-We *could* do something like this.
+This uses the same preallocated-vector and `seq_along()` pattern introduced in lecture 13. Here each iteration stores model fit for a different value of `k`.
 
 ```{r eval=FALSE}
 set.seed(seed_num)
@@ -416,6 +487,10 @@ for (k in seq_along(fit_tune)) {
 ---
 
 Instead of writing a for loop, we can use the `map()` and `pmap()` functions where arguments that we don't want to loop over are included after the function.
+
+In the next example, `centers` changes with each value of `k`, while the observations and `nstart` stay fixed. The fitting function returns a model object for each iteration; `map()` then extracts its fit summary.
+
+## Tune k with Mapping Functions
 
 ```{r}
 # Select the clustering variables.
@@ -525,6 +600,8 @@ $Churn = Usage + Tenure$
 
 $Churn = Usage + Tenure + Cluster$
 
+This bridges unsupervised and supervised learning: a discovered cluster becomes an input to a model with a known outcome. Fit scaling and clustering within each training fold, then assign validation observations using those fitted settings. Otherwise, the engineered feature can leak information across the split.
+
 ## Using Clusters for Stratified/Segmented Modeling
 
 Build a separate predictive (or inferential) model for each customer segment!
@@ -577,6 +654,7 @@ Salespeople at the supplier firm should allocate their time proportional to the 
 - Began to delve into unsupervised learning with k-means.
 - Discussed the `map()` functions for iteration.
 - Explored hyperparameter tuning for selecting `k`.
+- Connected lecture 13's functions and conditional iteration to simulation, model comparison, and useful customer segments.
 
 *Next Time*
 
